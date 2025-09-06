@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- ...existing content... -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bio-DJ</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "nipplejs": "https://esm.sh/nipplejs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- ...existing content... -->
+  <header class="bar">
+    <div class="brand">Bio‑DJ</div>
+    <div class="actions">
+      <button id="connect-btn">Connect Ring</button>
+      <button id="play-btn" disabled>Play</button>
+      <button id="stop-btn" disabled>Stop</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <label class="file-label">
+        <input id="file-input" type="file" multiple accept="audio/*">
+        <span>Upload your sound files</span>
+      </label>
+      <div id="library" class="library empty">No files loaded yet.</div>
+      <div class="control-row">
+        <label for="silence">Space amount</label>
+        <input id="silence" type="range" min="0" max="100" value="20">
+        <span id="silence-val">20%</span>
+      </div>
+      <div class="control-row">
+        <label for="minseg">Min segment</label>
+        <input id="minseg" type="range" min="0.2" max="8" step="0.1" value="0.8">
+        <span id="minseg-val">0.8s</span>
+      </div>
+      <div class="control-row">
+        <label><input id="explore" type="checkbox"> Explore one track for a while</label>
+      </div>
+      <div class="control-row">
+        <label for="volume">Volume</label>
+        <input id="volume" type="range" min="0" max="100" value="80">
+        <span id="volume-val">80%</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="readout">
+        <div>Heart rate: <strong id="hr">--</strong> bpm</div>
+        <div>Motion: <strong id="motion">--</strong> g</div>
+        <div>Status: <span id="now-doing">Load audio to begin.</span></div>
+        <div class="badges"><span id="worn-badge" class="badge">Worn: --</span><span id="battery-badge" class="badge">Battery: --</span></div>
+      </div>
+      <canvas id="hr-canvas" class="hr-canvas" aria-label="Heart rate history"></canvas>
+      <div id="log" class="log" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Use Chrome over HTTPS. Web Bluetooth and audio need a user gesture to start.
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+  <!-- ...existing content... -->
+</body>
+</html>
