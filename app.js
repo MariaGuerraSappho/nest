@@ -2,6 +2,7 @@
 import { RingBLE } from './ringBle.js';
 import { AudioEngine } from './audioEngine.js';
 import { drawECG, resizeCanvas } from './hrVis.js';
+import { BluetoothManager } from './buzzbox.js';
 
 const connectBtn = document.getElementById('connect-btn');
 const playBtn = document.getElementById('play-btn');
@@ -26,8 +27,17 @@ const hrCanvas = document.getElementById('hr-canvas');
 let hrCtx = hrCanvas.getContext('2d'), hrHistory = [];
 let hrBuf = []; let lastHrTs = 0; let mEWMA = 0; let lastLogText = ''; let dupCount = 0;
 
+/* BuzzBox UI */
+const buzzConnect = document.getElementById('buzz-connect');
+const buzzOn = document.getElementById('buzz-on');
+const buzzRand = document.getElementById('buzz-random');
+const buzzOff = document.getElementById('buzz-off');
+const buzzStatus = document.getElementById('buzz-status');
+const buzzBattery = document.getElementById('buzz-battery');
+
 const ring = new RingBLE(msg => addLog(msg));
 const audio = new AudioEngine(report => setNowDoing(report));
+const buzz = new BluetoothManager();
 
 function addLog(t) {
   const ts = new Date().toLocaleTimeString();
@@ -107,8 +117,9 @@ minSeg.addEventListener('input', () => {
   audio.setMinSegment(parseFloat(minSeg.value));
 });
 
-minSegVal.textContent = Number(minSeg.value).toFixed(1) + 's';
-audio.setMinSegment(parseFloat(minSeg.value));
+// initialize space amount on load
+silenceVal.textContent = silence.value + '%';
+audio.setSilence(parseInt(silence.value, 10) / 100);
 explore.addEventListener('change', () => {
   audio.setExploreMode(explore.checked);
 });
@@ -124,6 +135,8 @@ audio.setVolume(parseInt(volume.value, 10) / 100);
 let lastWorn = null, lastMotion = 0;
 /* add cached valid values */
 let lastGoodHR = null, lastGoodMotion = null;
+/* add motion log throttle */
+let lastMotionLogAt = 0, lastLoggedMotion = 0;
 
 ring.onHeartRate = (bpm, derived=false) => {
   if (Number.isFinite(bpm) && bpm >= 25 && bpm <= 220) {
@@ -143,12 +156,17 @@ ring.onHeartRate = (bpm, derived=false) => {
 };
 
 ring.onMotion = g => {
-  let m = (!Number.isFinite(g) || g < 0.05) ? 0 : Math.min(3, g);
-  mEWMA = mEWMA ? (mEWMA*0.8 + m*0.2) : m;
+  let m = (!Number.isFinite(g) || g < 0.005) ? 0 : Math.min(3, g);
+  mEWMA = mEWMA ? (mEWMA * 0.65 + m * 0.35) : m;
   const filtered = Math.min(3, mEWMA);
   lastMotion = filtered; lastGoodMotion = filtered;
-  motionEl.textContent = filtered.toFixed(2);
+  motionEl.textContent = filtered.toFixed(3);
   audio.updateMotion(filtered);
+  const now = Date.now();
+  if (Math.abs(filtered - lastLoggedMotion) > 0.01 || (now - lastMotionLogAt) > 2000) {
+    addLog(`Motion: ${filtered.toFixed(3)} g`);
+    lastLoggedMotion = filtered; lastMotionLogAt = now;
+  }
 };
 
 ring.onWorn = worn => {
@@ -176,3 +194,33 @@ setInterval(() => {
   if (!lastGoodHR) return;
   if (Date.now() - lastHrTs > 3000) { hrEl.textContent = `${lastGoodHR} (searching)`; }
 }, 500);
+
+/* BuzzBox wiring */
+buzz.on('connected', () => {
+  buzzStatus.textContent = 'BuzzBox: Connected.';
+  buzzConnect.textContent = 'Connected';
+  buzzConnect.disabled = true;
+  buzzOn.disabled = buzzRand.disabled = buzzOff.disabled = false;
+  addLog('BuzzBox connected.');
+});
+buzz.on('disconnected', () => {
+  buzzStatus.textContent = 'BuzzBox: Disconnected.';
+  buzzConnect.textContent = 'Connect BuzzBox';
+  buzzConnect.disabled = false;
+  buzzOn.disabled = buzzRand.disabled = buzzOff.disabled = true;
+  buzzBattery.textContent = 'Battery: --';
+  addLog('BuzzBox disconnected.');
+});
+buzz.on('batteryUpdate', lvl => {
+  buzzBattery.textContent = `Battery: ${lvl == null ? '--' : lvl + '%'}`;
+});
+buzz.on('error', msg => addLog('BuzzBox error: ' + msg));
+buzz.on('modeChanged', m => addLog('BuzzBox mode ' + m));
+buzz.on('randomStateChanged', st => addLog(`BuzzBox ${st.buzzing?'buzzing':'silence'} ${st.buzzing?st.buzzDuration:st.silenceDuration}ms`));
+
+buzzConnect.addEventListener('click', async () => {
+  try { await buzz.connect(); } catch(e){ addLog('BuzzBox connect failed: ' + e.message); }
+});
+buzzOn.addEventListener('click', async () => { try { await buzz.setMode(1); } catch(e){ addLog('BuzzBox on failed: ' + e.message);} });
+buzzRand.addEventListener('click', async () => { try { await buzz.setMode(2); } catch(e){ addLog('BuzzBox random failed: ' + e.message);} });
+buzzOff.addEventListener('click', async () => { try { await buzz.setMode(0); buzz.stopRandomMode(); } catch(e){ addLog('BuzzBox off failed: ' + e.message);} });

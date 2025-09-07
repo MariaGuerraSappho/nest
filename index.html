@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bio-DJ</title>
+  <title></title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
@@ -19,7 +19,7 @@
 <body>
   <!-- ...existing content... -->
   <header class="bar">
-    <div class="brand">Bio‑DJ</div>
+    <div class="brand">NEST</div>
     <div class="actions">
       <button id="connect-btn">Connect Ring</button>
       <button id="play-btn" disabled>Play</button>
@@ -51,6 +51,18 @@
         <label for="volume">Volume</label>
         <input id="volume" type="range" min="0" max="100" value="80">
         <span id="volume-val">80%</span>
+      </div>
+      <hr>
+      <div class="control-row">
+        <strong>BuzzBox</strong>
+        <button id="buzz-connect">Connect BuzzBox</button>
+        <button id="buzz-on" disabled>On</button>
+        <button id="buzz-random" disabled>Random</button>
+        <button id="buzz-off" disabled>Off</button>
+      </div>
+      <div class="control-row">
+        <span id="buzz-status">BuzzBox: Disconnected.</span>
+        <span class="badge" id="buzz-battery">Battery: --</span>
       </div>
     </section>
 

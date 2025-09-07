@@ -25,6 +25,8 @@ export class RingBLE {
     this._ppgPrevSmooth = 0;
     this._lastPeakMs = 0; 
     this._ibis = [];
+    this._lastA1Log = 0;
+    this._a1Count = 0;
   }
 
   async connect() {
@@ -70,8 +72,10 @@ export class RingBLE {
 
   async enableRaw() {
     this.log('Enabling raw sensor data…');
+    await new Promise(r => setTimeout(r, 150));
     await this._sendSettingsArray(hexToBytes('03'));
     await this._sendSettingsArray(hexToBytes('A10404'));
+    setTimeout(() => this._sendSettingsArray(hexToBytes('A10304')).catch(()=>{}), 400);
     this.startHeartRate();
     clearInterval(this.keepAliveTimer);
     this.keepAliveTimer = setInterval(async () => {
@@ -123,13 +127,15 @@ export class RingBLE {
           this._ppgSample(((data[2]<<8)|data[3])>32767?((data[2]<<8)|data[3])-65536:((data[2]<<8)|data[3]));
         }
         if (data[1] === 3) {
-          const rawY = int12(((data[2] << 4) | (data[3] & 0x0f)) & 0xfff);
-          const rawZ = int12(((data[4] << 4) | (data[5] & 0x0f)) & 0xfff);
-          const rawX = int12(((data[6] << 4) | (data[7] & 0x0f)) & 0xfff);
+          const rawY = int12(((data[2] << 4) | (data[3] & 0x0f)) & 0x0fff);
+          const rawZ = int12(((data[4] << 4) | (data[5] & 0x0f)) & 0x0fff);
+          const rawX = int12(((data[6] << 4) | (data[7] & 0x0f)) & 0x0fff);
           const Ax = convertRawToG(rawX), Ay = convertRawToG(rawY), Az = convertRawToG(rawZ);
           const mag = Math.sqrt(Ax*Ax + Ay*Ay + Az*Az); 
           this.lastMotionAt = Date.now();
-          this.onMotion && this.onMotion(Math.max(0, mag - 1));
+          this.onMotion && this.onMotion(mag);
+          this._a1Count++;
+          this.log(`A1#${this._a1Count} ${bytesToHex(data)} | Ax=${Ax.toFixed(3)}g Ay=${Ay.toFixed(3)}g Az=${Az.toFixed(3)}g mag=${mag.toFixed(3)}g`);
         }
         break;
       }

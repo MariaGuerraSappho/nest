@@ -150,8 +150,7 @@ export class AudioEngine {
     const strength = (hr>100?1:0) + (g>0.2?1:0) + ((hr>120||g>0.6)?1:0);
     const density = (1 - this.space);
     const desired = Math.max(0, Math.min(3, Math.floor(strength * density * density)));
-    this.layers = this.layers.filter(l => l.endAt > this.ctx.currentTime);
-    if (Math.random() < this.space) return; // throttle new layers when space is high
+    if (Math.random() < (this.space < 0.85 ? this.space : 0.985)) return; // aggressive throttle when space is very high
     while (this.layers.length < desired) {
       const t = this.files[Math.floor(Math.random()*this.files.length)];
       const off = Math.random()*Math.max(0, t.duration-1);
@@ -203,15 +202,16 @@ export class AudioEngine {
     this.current = { src, track, gainNode, offset };
     this.report(`Bed "${track.name}" @ ${src.playbackRate.value.toFixed(2)}x from ${Math.round(offset)}s for ${Math.round(segDur*1000)}ms`);
     clearTimeout(this.nextTimer);
-    const enforcedGap = this.space > 0.5 ? Math.max(this._spaceGap(), segDur * this.space) : this._spaceGap();
+    const enforcedGap = this.space > 0.5 ? Math.max(this._spaceGap(), segDur * this.space) * (this.space >= 0.9 ? 2.5 : 1) : this._spaceGap();
     this.nextTimer = setTimeout(() => this._playNewSegment(), (segDur + enforcedGap) * 1000);
   }
 
   _segmentDuration() {
-    // 6–18s bed windows varying with HR
+    // 6–18s base varying with HR, then shorten as space increases
     const t = 1 - (Math.min(140, Math.max(50, this.hr)) - 50) / 90;
-    const base = Math.max(this.minSegment, 6 + t * (18 - 6));
-    return (this.space > 0.5) ? Math.min(45, base) : base;
+    const base = Math.max(this.minSegment, 6 + t * 12); // 6..18s
+    const spaceFactor = 1 - 0.65 * this.space;         // more space => shorter segments
+    return Math.max(this.minSegment, base * spaceFactor);
   }
 
   _spaceGap() {
@@ -222,6 +222,7 @@ export class AudioEngine {
     let gap = 3 + base * 32 * (0.7 + Math.random()*0.6); // ~3..35s
     const act = this._activity();
     gap *= (0.7 + (1 - act) * 0.9); // up to ~1.6x longer when very low activity
+    if (this.space >= 0.9) gap *= 2.5; // much longer gaps at 90%+
     return gap;
   }
 }
